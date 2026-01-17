@@ -1,6 +1,6 @@
 # Scanition - Nutrition Label Detection System
 
-> **Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan YOLOv11, PaddleOCR, dan TrOCR**
+> **Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan YOLO dan OCR**
 
 Web application untuk mendeteksi dan mengekstrak informasi nilai gizi dari foto kemasan makanan secara otomatis menggunakan teknologi Computer Vision dan OCR.
 
@@ -47,7 +47,7 @@ This is an undergraduate thesis project (Skripsi) from the Informatics Engineeri
 
 ## 📸 Screenshots
 
-![Nutrition Detection Demo](assets/demo_screenshot.png)
+![Nutrition Detection Demo](assets/demo_screenshot.png, assets/demo_screenshot2.png, assets/demo_screenshot3.png)
 
 ---
 
@@ -269,7 +269,7 @@ TROCR_MODEL_PATH = "models/trocr/rec-tr"
 | Model | Metric | Value |
 |-------|--------|-------|
 | **YOLOv11** | mAP@0.5 | 95%+ |
-| **PaddleOCR** | Detection Accuracy | ~90% |
+| **PaddleOCR** | Detection Accuracy | ~67% |
 | **TrOCR** | CER (Character Error Rate) | 0.30 (30%) |
 
 ### Processing Time
@@ -347,10 +347,3 @@ Universitas Sriwijaya
 
 ---
 
-## 🌟 Star This Repository
-
-If you find this project useful for your research or study, please ⭐ star this repository!
-
----
-
-**Built with ❤️ for Indonesian Food Safety**
