@@ -47,7 +47,14 @@ This is an undergraduate thesis project (Skripsi) from the Informatics Engineeri
 
 ## 📸 Screenshots
 
-![Nutrition Detection Demo](assets/demo_screenshot.png, assets/demo_screenshot2.png, assets/demo_screenshot3.png)
+### Home Page
+![Home Page](assets/images/Home_Page.png)
+
+### Detection Page
+![Detection Page](assets/images/Detection_Page.png)
+
+### About Page
+![About Page](assets/images/About_Page.png)
 
 ---
 
