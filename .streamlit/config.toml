@@ -1,0 +1,18 @@
+[theme]
+# Tema Universitas Sriwijaya
+primaryColor = "#1E4620"        # Hijau Tua (Warna Utama Unsri)
+backgroundColor = "#FFFFFF"      # Background Putih
+secondaryBackgroundColor = "#F0F2F6"  # Background Abu-abu Terang
+textColor = "#262730"           # Warna Text Gelap
+font = "sans serif"             # Font Default
+
+[server]
+headless = true
+port = 8501
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+serverPort = 8501

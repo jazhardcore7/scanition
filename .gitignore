@@ -1,0 +1,97 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+temp_test.jpg
+*.tmp
+*.log
+
+# ============================================
+# MODELS - Too large for GitHub
+# Users must download/train these separately
+# ============================================
+models/
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.pdmodel
+*.pdiparams
+*.pdopt
+*.pdparams
+
+# ============================================
+# DATASET & TRAINING FILES
+# ============================================
+data/
+datasets/
+crop_tests/
+trocr_dataset/
+runs/
+checkpoints/
+output/
+temp/
+
+# Training artifacts
+optimizer.pt
+scheduler.pt
+rng_state.pth
+scaler.pt
+trainer_state.json
+training_args.bin
+
+# ============================================
+# SCRIPTS - Dataset processing (not needed for web app)
+# ============================================
+scripts/dataset_preparation/
+scripts/training/
+auto_label_dataset.py
+prepare_trocr_dataset.py
+prepare_trocr_from_crops.py
+review_labels.py
+validate_dataset.py
+
+# ============================================
+# GUIDES - Agent-generated documentation
+# ============================================
+*_guide.md
+*_GUIDE.md
+upload_guide.md
+trocr_finetuning_guide.md
+download_training_results.md
+PUSH_TO_GITHUB.md
+
+# ============================================
+# DOCUMENTATION - Keep only README.md
+# ============================================
+docs/training/
+docs/guides/
+
