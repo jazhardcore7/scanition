@@ -544,8 +544,8 @@ with st.sidebar:
     # Navigation Menu
     selected = option_menu(
         menu_title=None,
-        options=["Home", "Detection", "History", "About"],
-        icons=["house-fill", "search", "clock-history", "info-circle-fill"],
+        options=["Home", "Detection", "About"],
+        icons=["house-fill", "search", "info-circle-fill"],
         menu_icon="cast",
         default_index=0,
         styles={
@@ -603,7 +603,6 @@ if selected == "Home":
         
         ✅ **Deteksi Otomatis**: Mendeteksi tabel gizi dari foto kemasan makanan  
         ✅ **Ekstraksi Informasi**: Mengekstrak nilai gizi (kalori, protein, lemak, dll)  
-        ✅ **Riwayat Deteksi**: Menyimpan hasil deteksi sebelumnya  
         ✅ **User-Friendly**: Interface sederhana dan mudah digunakan  
         """)
     
@@ -766,23 +765,6 @@ elif selected == "Detection":
             Klik tombol **"Mulai Deteksi"** di kolom kiri untuk memulai.
             """)
 
-
-elif selected == "History":
-    # HISTORY PAGE
-    st.markdown("## 🕐 Riwayat Deteksi")
-    
-    st.info("📋 Riwayat deteksi akan ditampilkan di sini (Coming Soon)")
-    
-    # Example table structure
-    st.markdown("### Contoh Tabel Riwayat")
-    sample_data = {
-        "Tanggal": ["2026-01-13", "2026-01-12", "2026-01-11"],
-        "Nama Produk": ["Indomie Goreng", "Chitato Rasa Sapi", "Oreo Original"],
-        "Kalori": ["370 kkal", "520 kkal", "480 kkal"],
-        "Status": ["✅ Sukses", "✅ Sukses", "✅ Sukses"]
-    }
-    df = pd.DataFrame(sample_data)
-    st.dataframe(df, use_column_width=True)
 
 elif selected == "About":
     # ABOUT PAGE
