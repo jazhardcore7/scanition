@@ -39,8 +39,8 @@ st.set_page_config(
 def load_paddle_detector():
     """
     Load PaddleOCR for text detection only.
-    Uses subprocess to avoid library conflicts with PyTorch/YOLO.
-    This allows us to use the custom fine-tuned model in models/det_db_inference
+    Uses subprocess to avoid library conflicts with PyTorch.
+    This allows us to use the custom fine-tuned model in models/paddleocr/det-new/best_model
     """
     st.info("📋 PaddleOCR akan dijalankan via subprocess (CPU mode) untuk menghindari library conflict")
     st.success("✅ PaddleOCR (Custom Fine-tuned Model) ready via subprocess")
@@ -80,8 +80,25 @@ def load_trocr_model():
         base_model_for_processor = "microsoft/trocr-small-printed"
         processor = TrOCRProcessor.from_pretrained(base_model_for_processor)
         
-        # Load fine-tuned model
-        model = VisionEncoderDecoderModel.from_pretrained(model_name)
+        # Load fine-tuned model with compatibility parameters
+        # Try with local_files_only first to avoid version conflicts
+        try:
+            model = VisionEncoderDecoderModel.from_pretrained(
+                model_name,
+                local_files_only=True,
+                trust_remote_code=False
+            )
+        except Exception as load_error:
+            st.warning(f"Initial load attempt failed: {str(load_error)[:100]}...")
+            st.info("Trying alternative loading method...")
+            # Fallback: load without strict validation
+            model = VisionEncoderDecoderModel.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                ignore_mismatched_sizes=True,
+                local_files_only=True
+            )
+        
         model = model.to(device)
         model.eval()  # Set to evaluation mode
         
