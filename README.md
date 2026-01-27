@@ -1,8 +1,8 @@
 # Scanition - Nutrition Label Detection System
 
-> **Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan YOLO dan OCR**
+> **Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan PaddleOCR dan TrOCR**
 
-Web application untuk mendeteksi dan mengekstrak informasi nilai gizi dari foto kemasan makanan secara otomatis menggunakan teknologi Computer Vision dan OCR.
+Web application untuk mendeteksi dan mengekstrak informasi nilai gizi dari gambar tabel nutrisi secara otomatis menggunakan teknologi OCR (Optical Character Recognition).
 
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -23,10 +23,10 @@ This is an undergraduate thesis project (Skripsi) from the Informatics Engineeri
 
 ## 🌟 Features
 
-- ✅ **Automatic Table Detection** - Detects nutrition facts table using YOLOv11
 - ✅ **Text Detection** - Locates text regions using custom fine-tuned PaddleOCR
 - ✅ **Text Recognition** - Reads Indonesian nutrition labels with fine-tuned TrOCR
 - ✅ **Bounding Box Visualization** - Shows detected text regions with green boxes
+- ✅ **JSON Token Output** - Outputs raw detected text tokens in JSON format
 - ✅ **Real-time Processing** - Interactive web interface built with Streamlit
 - ✅ **GPU Acceleration** - CUDA support for faster inference
 
@@ -37,9 +37,8 @@ This is an undergraduate thesis project (Skripsi) from the Informatics Engineeri
 | Component | Technology |
 |-----------|-----------|
 | **Frontend** | Streamlit |
-| **Object Detection** | YOLOv11 (Ultralytics) |
-| **Text Detection** | PaddleOCR (Custom Fine-tuned) |
-| **Text Recognition** | TrOCR (Fine-tuned on Indonesian nutrition labels) |
+| **Text Detection** | PaddleOCR (Custom Fine-tuned - det-new) |
+| **Text Recognition** | TrOCR (Fine-tuned on Indonesian nutrition labels - rec-tr-new) |
 | **Image Processing** | OpenCV, Pillow |
 | **Deep Learning** | PyTorch (CUDA 11.8) |
 
@@ -113,31 +112,26 @@ Create a `models/` folder structure:
 
 ```
 models/
-├── yolo/
-│   └── best_yolo.pt              # YOLOv11 model for nutrition table detection
 ├── paddleocr/
-│   └── det_db_inference/
-│       ├── inference.pdmodel      # PaddleOCR detection model
-│       ├── inference.pdiparams    # PaddleOCR parameters
-│       └── inference.yml          # PaddleOCR config
+│   └── det-new/
+│       └── best_model/
+│           ├── model.pdparams       # PaddleOCR detection model weights
+│           └── model.pdopt           # PaddleOCR optimizer state
 └── trocr/
-    └── rec-tr/
-        ├── config.json            # TrOCR configuration
-        ├── model.safetensors      # Fine-tuned TrOCR weights (~246 MB)
-        └── generation_config.json # Generation parameters
+    └── rec-tr-new/
+        ├── config.json               # TrOCR configuration
+        ├── model.safetensors         # Fine-tuned TrOCR weights
+        └── generation_config.json    # Generation parameters
 ```
 
 ### Where to Get Models
 
-1. **YOLOv11 Model**
-   - Train your own using Ultralytics YOLO on nutrition table dataset
-   - Or contact the author for the pre-trained model
+1. **PaddleOCR Model (det-new)**
+   - Fine-tuned model on Indonesian nutrition label text detection
+   - Located in thesis training outputs
+   - Or contact the author for the fine-tuned model
 
-2. **PaddleOCR Model**
-   - Train using PaddleOCR framework on Indonesian text
-   - Or use default PaddleOCR detection model
-
-3. **TrOCR Model**
+2. **TrOCR Model (rec-tr-new)**
    - Fine-tuned model available from author
    - Base model: `microsoft/trocr-base-handwritten`
    - Fine-tuned on Indonesian nutrition label dataset
@@ -145,8 +139,7 @@ models/
 ### Model Training (For Developers)
 
 Refer to the thesis document for detailed training procedures:
-- YOLOv11 training on nutrition table dataset
-- PaddleOCR fine-tuning for Indonesian text
+- PaddleOCR fine-tuning for Indonesian nutrition table text detection
 - TrOCR fine-tuning on nutrition label crops
 
 ---
@@ -169,7 +162,6 @@ scanition/
 ├── assets/                # Static files (images, logos)
 │   └── images/
 └── models/                # AI models (not in repo - see setup above)
-    ├── yolo/
     ├── paddleocr/
     └── trocr/
 ```
@@ -181,21 +173,17 @@ scanition/
 ### Pipeline Architecture
 
 ```
-Input Image (Nutrition Label Photo)
+Input Image (Nutrition Table - Cropped)
           ↓
-[1] YOLOv11 Object Detection
-    → Detects nutrition table location
-    → Crops table region (93%+ confidence)
-          ↓
-[2] PaddleOCR Text Detection
+[1] PaddleOCR Text Detection
     → Finds text bounding boxes
     → Returns 20-30 text regions
           ↓
-[3] TrOCR Text Recognition
+[2] TrOCR Text Recognition
     → Reads each text box
     → Outputs Indonesian nutrition terms
           ↓
-Final Output: JSON with detected nutrition information
+Final Output: Image with bbox + JSON tokens
 ```
 
 ### Example Output
@@ -224,10 +212,10 @@ Final Output: JSON with detected nutrition information
 ### Web Interface
 
 1. Navigate to **Detection** page
-2. Upload a photo of food packaging with nutrition facts
+2. Upload a cropped nutrition table image
 3. Click **"Mulai Deteksi"** (Start Detection)
 4. View results:
-   - Original image with detected table
+   - Original image
    - Image with green bounding boxes showing text locations
    - Statistics (text boxes count, processing time)
    - Extracted text tokens in JSON format
@@ -236,6 +224,7 @@ Final Output: JSON with detected nutrition information
 
 - JPG/JPEG
 - PNG
+- Recommended: Pre-cropped nutrition table images
 - Maximum recommended size: 2000x2000 pixels
 
 ---
@@ -262,9 +251,8 @@ enableCORS = false
 Update paths in `main.py` if your model locations differ:
 
 ```python
-YOLO_MODEL_PATH = "models/yolo/best_yolo.pt"
-PADDLE_MODEL_PATH = "models/paddleocr/det_db_inference"
-TROCR_MODEL_PATH = "models/trocr/rec-tr"
+PADDLE_MODEL_PATH = "models/paddleocr/det-new/best_model"
+TROCR_MODEL_PATH = "models/trocr/rec-tr-new"
 ```
 
 ---
@@ -275,14 +263,13 @@ TROCR_MODEL_PATH = "models/trocr/rec-tr"
 
 | Model | Metric | Value |
 |-------|--------|-------|
-| **YOLOv11** | mAP@0.5 | 95%+ |
-| **PaddleOCR** | Detection Accuracy | ~67% |
-| **TrOCR** | CER (Character Error Rate) | 0.30 (30%) |
+| **PaddleOCR (det-new)** | Detection Accuracy | Fine-tuned model |
+| **TrOCR (rec-tr-new)** | Character Recognition | Fine-tuned on Indonesian labels |
 
 ### Processing Time
 
-- **Average**: 10-15 seconds per image (CPU)
-- **With GPU**: 5-8 seconds per image
+- **Average**: 5-10 seconds per image (CPU)
+- **With GPU**: 3-5 seconds per image
 
 ---
 
@@ -293,7 +280,7 @@ TROCR_MODEL_PATH = "models/trocr/rec-tr"
 <details>
 <summary><b>Model files not found</b></summary>
 
-**Error:** `Model YOLO tidak ditemukan di: models/yolo/best_yolo.pt`
+**Error:** `Fine-tuned model not found`
 
 **Solution:** Download required models and place them in correct folders (see [Model Setup](#-model-setup))
 </details>

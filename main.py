@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 import cv2
 import torch
-from ultralytics import YOLO
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from datetime import datetime
 import json
@@ -34,37 +33,7 @@ st.set_page_config(
 # MODEL LOADING FUNCTIONS (CACHED)
 # ========================================
 
-@st.cache_resource
-def load_yolo_model():
-    """
-    Load YOLOv11 model for nutrition table detection.
-    Model path: models/best_yolo.pt
-    """
-    try:
-        model_path = "models/best_yolo.pt"
-        if not os.path.exists(model_path):
-            st.warning(f"⚠️ Model YOLO tidak ditemukan di: {model_path}")
-            st.info("Model YOLO diperlukan untuk deteksi tabel. Silakan letakkan file model di folder 'models/'")
-            return None
-        
-        model = YOLO(model_path)
-        st.success("✅ YOLOv11 model loaded successfully")
-        return model
-    except AttributeError as e:
-        if "C3k2" in str(e) or "module" in str(e):
-            st.error(f"❌ YOLO Model Version Conflict!")
-            st.info("""
-            **Solusi**:
-            1. Update ultralytics: `pip install --upgrade ultralytics`
-            2. Atau re-export model dengan ultralytics versi saat ini
-            3. Model saat ini mungkin di-train dengan versi ultralytics yang berbeda
-            """)
-        else:
-            st.error(f"❌ Error loading YOLO model: {str(e)}")
-        return None
-    except Exception as e:
-        st.error(f"❌ Error loading YOLO model: {str(e)}")
-        return None
+
 
 @st.cache_resource
 def load_paddle_detector():
@@ -88,12 +57,12 @@ def load_paddle_detector():
 def load_trocr_model():
     """
     Load Fine-tuned TrOCR model for text recognition.
-    Model: Custom fine-tuned model from models/rec-tr
-    Fine-tuned on nutrition label dataset with CER: 0.30
+    Model: Custom fine-tuned model from models/trocr/rec-tr-new
+    Fine-tuned on nutrition label dataset
     """
     try:
         # Path to fine-tuned model
-        model_path = "models/rec-tr"
+        model_path = "models/trocr/rec-tr-new"
         
         # Check if local fine-tuned model exists
         if not os.path.exists(model_path):
@@ -117,7 +86,7 @@ def load_trocr_model():
         model.eval()  # Set to evaluation mode
         
         device_msg = "GPU" if device == "cuda" else "CPU"
-        model_type = "Fine-tuned (CER: 0.30)" if model_name == model_path else "Base Model"
+        model_type = "Fine-tuned (New Model)" if model_name == model_path else "Base Model"
         st.success(f"✅ TrOCR {model_type} loaded successfully on {device_msg}")
         return processor, model, device
     except Exception as e:
@@ -130,59 +99,14 @@ def load_trocr_model():
 # PROCESSING FUNCTIONS
 # ========================================
 
-def detect_table_yolo(image, yolo_model, confidence_threshold=0.25):
-    """
-    Step A: Detect nutrition table using YOLOv11
-    
-    Args:
-        image: PIL Image or numpy array
-        yolo_model: Loaded YOLO model
-        confidence_threshold: Minimum confidence for detection
-    
-    Returns:
-        cropped_table: Cropped image of detected table (PIL Image)
-        bbox: Bounding box coordinates [x1, y1, x2, y2]
-        confidence: Detection confidence score
-    """
-    try:
-        # Convert PIL to numpy array if needed
-        if isinstance(image, Image.Image):
-            img_array = np.array(image)
-        else:
-            img_array = image
-        
-        # Run YOLO detection
-        results = yolo_model(img_array, conf=confidence_threshold)
-        
-        # Get detection with highest confidence
-        if len(results[0].boxes) == 0:
-            return None, None, 0.0
-        
-        # Get the box with highest confidence
-        boxes = results[0].boxes
-        confidences = boxes.conf.cpu().numpy()
-        best_idx = np.argmax(confidences)
-        
-        bbox = boxes.xyxy[best_idx].cpu().numpy().astype(int)
-        confidence = float(confidences[best_idx])
-        
-        # Crop the table region
-        x1, y1, x2, y2 = bbox
-        cropped_table = img_array[y1:y2, x1:x2]
-        cropped_table_pil = Image.fromarray(cropped_table)
-        
-        return cropped_table_pil, bbox, confidence
-    
-    except Exception as e:
-        st.error(f"❌ Error in YOLO detection: {str(e)}")
-        return None, None, 0.0
 
-def detect_text_boxes_paddle(cropped_table, paddle_ocr):
+
+def detect_text_boxes_paddle(input_image, paddle_ocr):
     """
-    Step B: Detect text bounding boxes using PaddleOCR
+    Step 1: Detect text bounding boxes using PaddleOCR
     
     Args:
-        cropped_table: Cropped table image (PIL Image)
+        input_image: Input nutrition table image (PIL Image)
         paddle_ocr: Loaded PaddleOCR detector or SubprocessPaddleOCR marker
     
     Returns:
@@ -195,12 +119,12 @@ def detect_text_boxes_paddle(cropped_table, paddle_ocr):
             import subprocess
             import tempfile
             
-            # Save cropped table to temp file
+            # Save input image to temp file
             with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
-                if isinstance(cropped_table, Image.Image):
-                    cropped_table.save(f.name)
+                if isinstance(input_image, Image.Image):
+                    input_image.save(f.name)
                 else:
-                    Image.fromarray(cropped_table).save(f.name)
+                    Image.fromarray(input_image).save(f.name)
                 temp_path = f.name
             
             try:
@@ -257,10 +181,10 @@ def detect_text_boxes_paddle(cropped_table, paddle_ocr):
         else:
             # Original in-process PaddleOCR (if it works)
             # Convert PIL to numpy array
-            if isinstance(cropped_table, Image.Image):
-                img_array = np.array(cropped_table)
+            if isinstance(input_image, Image.Image):
+                img_array = np.array(input_image)
             else:
-                img_array = cropped_table
+                img_array = input_image
             
             # Run PaddleOCR detection
             result = paddle_ocr.ocr(img_array, cls=False, rec=False)
@@ -369,13 +293,12 @@ def draw_bounding_boxes(image, detected_texts):
         st.error(f"❌ Error drawing bounding boxes: {str(e)}")
         return image if isinstance(image, Image.Image) else Image.fromarray(image)
 
-def process_image(image_input, yolo_model, paddle_ocr, trocr_processor, trocr_model, device):
+def process_image(image_input, paddle_ocr, trocr_processor, trocr_model, device):
     """
-    Complete Hybrid Processing Pipeline
+    OCR Processing Pipeline (Direct Nutrition Table Input)
     
     Args:
-        image_input: Input image (PIL Image)
-        yolo_model: Loaded YOLO model
+        image_input: Input nutrition table image (PIL Image)
         paddle_ocr: Loaded PaddleOCR detector
         trocr_processor: TrOCR processor
         trocr_model: TrOCR model
@@ -383,15 +306,14 @@ def process_image(image_input, yolo_model, paddle_ocr, trocr_processor, trocr_mo
     
     Returns:
         results: Dictionary containing:
-            - cropped_table: Cropped nutrition table image
-            - yolo_confidence: YOLO detection confidence
+            - input_image: Original input image
+            - annotated_image: Image with bounding boxes drawn
             - detected_texts: List of detected text boxes and recognized text
             - total_text_boxes: Number of text boxes detected
     """
     results = {
-        "cropped_table": None,
-        "annotated_table": None,  # New: Image with bounding boxes drawn
-        "yolo_confidence": 0.0,
+        "input_image": image_input,
+        "annotated_image": None,
         "detected_texts": [],
         "total_text_boxes": 0,
         "processing_time": 0.0
@@ -400,24 +322,15 @@ def process_image(image_input, yolo_model, paddle_ocr, trocr_processor, trocr_mo
     try:
         start_time = datetime.now()
         
-        # Step A: YOLO Detection
-        cropped_table, bbox, confidence = detect_table_yolo(image_input, yolo_model)
-        
-        if cropped_table is None:
-            return results
-        
-        results["cropped_table"] = cropped_table
-        results["yolo_confidence"] = confidence
-        
-        # Step B: PaddleOCR Text Detection
-        text_boxes = detect_text_boxes_paddle(cropped_table, paddle_ocr)
+        # Step 1: PaddleOCR Text Detection
+        text_boxes = detect_text_boxes_paddle(image_input, paddle_ocr)
         results["total_text_boxes"] = len(text_boxes)
         
         if len(text_boxes) == 0:
             return results
         
-        # Step C: TrOCR Text Recognition
-        cropped_table_array = np.array(cropped_table)
+        # Step 2: TrOCR Text Recognition
+        input_image_array = np.array(image_input)
         detected_texts = []
         
         # Progress bar for text recognition
@@ -435,7 +348,7 @@ def process_image(image_input, yolo_model, paddle_ocr, trocr_processor, trocr_mo
             x2, y2 = int(x_coords.max()), int(y_coords.max())
             
             # Crop text region
-            text_crop = cropped_table_array[y1:y2, x1:x2]
+            text_crop = input_image_array[y1:y2, x1:x2]
             
             # Skip if crop is too small
             if text_crop.shape[0] < 5 or text_crop.shape[1] < 5:
@@ -458,11 +371,11 @@ def process_image(image_input, yolo_model, paddle_ocr, trocr_processor, trocr_mo
         progress_text.empty()
         results["detected_texts"] = detected_texts
         
-        # Draw bounding boxes on the cropped table
+        # Draw bounding boxes on the input image
         if len(detected_texts) > 0:
-            results["annotated_table"] = draw_bounding_boxes(cropped_table, detected_texts)
+            results["annotated_image"] = draw_bounding_boxes(image_input, detected_texts)
         else:
-            results["annotated_table"] = cropped_table
+            results["annotated_image"] = image_input
         
         # Calculate processing time
         end_time = datetime.now()
@@ -563,7 +476,7 @@ with st.sidebar:
 # MAIN TITLE
 # ========================================
 st.markdown(
-    '<h1 class="main-title">Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan YOLO dan OCR</h1>',
+    '<h1 class="main-title">Deteksi Tabel Gizi Pada Kemasan Makanan Menggunakan PaddleOCR dan TrOCR</h1>',
     unsafe_allow_html=True
 )
 
@@ -582,17 +495,16 @@ if selected == "Home":
         ### Tentang Aplikasi
         
         Aplikasi ini merupakan sistem deteksi dan ekstraksi informasi **Tabel Gizi** 
-        pada kemasan makanan menggunakan teknologi:
+        dari gambar tabel nutrisi menggunakan teknologi:
         
-        - **YOLOv11**: Untuk mendeteksi lokasi tabel gizi
         - **PaddleOCR**: Untuk deteksi teks (Text Detection)
         - **TrOCR**: Untuk pengenalan teks (Text Recognition)
         
         ### Fitur Utama
         
-        ✅ **Deteksi Otomatis**: Mendeteksi tabel gizi dari foto kemasan makanan  
+        ✅ **Deteksi Teks Otomatis**: Mendeteksi area teks pada tabel gizi  
         ✅ **Ekstraksi Informasi**: Mengekstrak nilai gizi (kalori, protein, lemak, dll)  
-        ✅ **Riwayat Deteksi**: Menyimpan hasil deteksi sebelumnya  
+        ✅ **Visualisasi Bbox**: Menampilkan bounding box hasil deteksi  
         ✅ **User-Friendly**: Interface sederhana dan mudah digunakan  
         """)
     
@@ -601,7 +513,7 @@ if selected == "Home":
         **📌 Cara Penggunaan:**
         
         1. Pilih menu **Detection**
-        2. Upload foto kemasan makanan
+        2. Upload foto tabel gizi (crop dari kemasan)
         3. Klik **Proses Deteksi**
         4. Lihat hasil ekstraksi informasi gizi
         """)
@@ -614,12 +526,11 @@ elif selected == "Detection":
     
     # Load models (cached)
     with st.spinner("Loading AI models..."):
-        yolo_model = load_yolo_model()
         paddle_ocr = load_paddle_detector()
         trocr_processor, trocr_model, device = load_trocr_model()
     
     # Check if all models are loaded
-    models_ready = all([yolo_model is not None, paddle_ocr is not None, 
+    models_ready = all([paddle_ocr is not None, 
                        trocr_processor is not None, trocr_model is not None])
     
     if not models_ready:
@@ -641,9 +552,9 @@ elif selected == "Detection":
         
         # File Uploader
         uploaded_file = st.file_uploader(
-            "Upload Foto Kemasan Makanan",
+            "Upload Foto Tabel Gizi",
             type=["jpg", "jpeg", "png"],
-            help="Upload gambar kemasan makanan yang memiliki tabel informasi nilai gizi"
+            help="Upload gambar tabel informasi nilai gizi (crop dari kemasan makanan)"
         )
         
         # Preview Image
@@ -682,10 +593,9 @@ elif selected == "Detection":
         
         elif detect_button:
             # Process the image with spinner
-            with st.spinner("⏳ Sedang memproses: Deteksi Tabel → Deteksi Teks → TrOCR Reading..."):
+            with st.spinner("⏳ Sedang memproses: Deteksi Teks PaddleOCR → TrOCR Reading..."):
                 results = process_image(
                     image_input=image,
-                    yolo_model=yolo_model,
                     paddle_ocr=paddle_ocr,
                     trocr_processor=trocr_processor,
                     trocr_model=trocr_model,
@@ -696,43 +606,39 @@ elif selected == "Detection":
             # DISPLAY RESULTS
             # ========================================
             
-            if results["cropped_table"] is not None:
-                # 1. Cropped Table Images - Original and Annotated
-                st.markdown("#### 🍽️ Tabel Gizi Terdeteksi")
+            if results["total_text_boxes"] > 0:
+                # 1. Display Images - Original and Annotated
+                st.markdown("#### 🍽️ Tabel Gizi dengan Bounding Boxes")
                 
                 # Two columns: Original and with Bounding Boxes
                 img_col1, img_col2 = st.columns(2)
                 
                 with img_col1:
                     st.markdown("**Original**")
-                    st.image(results["cropped_table"], use_column_width=True)
+                    st.image(results["input_image"], use_column_width=True)
                 
                 with img_col2:
                     st.markdown("**Dengan Bounding Boxes PaddleOCR**")
-                    if results["annotated_table"] is not None:
-                        st.image(results["annotated_table"], use_column_width=True)
+                    if results["annotated_image"] is not None:
+                        st.image(results["annotated_image"], use_column_width=True)
                     else:
-                        st.image(results["cropped_table"], use_column_width=True)
-                
-                st.caption(f"✅ YOLO Confidence: **{results['yolo_confidence']:.2%}**")
+                        st.image(results["input_image"], use_column_width=True)
                 
                 st.markdown("---")
                 
                 # 2. Statistics
                 st.markdown("#### 📈 Statistik Deteksi")
-                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                metric_col1, metric_col2 = st.columns(2)
                 with metric_col1:
-                    st.metric("Kotak Teks", results["total_text_boxes"])
+                    st.metric("Kotak Teks Terdeteksi", results["total_text_boxes"])
                 with metric_col2:
-                    st.metric("Teks Terbaca", len(results["detected_texts"]))
-                with metric_col3:
                     st.metric("Waktu Proses", f"{results['processing_time']:.2f}s")
                 
                 st.markdown("---")
                 
                 # 3. Tokens Output - Text detected by TrOCR
                 if len(results["detected_texts"]) > 0:
-                    st.markdown("#### 📝 Hasil Deteksi Teks (Tokens)")
+                    st.markdown("#### 📝 Hasil Deteksi Teks (JSON Raw Tokens)")
                     
                     # Extract tokens from detected texts
                     tokens = []
@@ -745,7 +651,7 @@ elif selected == "Detection":
                 else:
                     st.warning("⚠️ Tidak ada teks yang berhasil dikenali dari tabel")
             else:
-                st.error("❌ Gagal mendeteksi tabel gizi pada gambar ini. Pastikan tabel gizi terlihat jelas.")
+                st.error("❌ Tidak ada teks terdeteksi pada gambar ini. Pastikan gambar tabel gizi terlihat jelas.")
         
         else:
             # Before button clicked

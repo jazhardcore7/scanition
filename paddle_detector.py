@@ -1,8 +1,8 @@
 """
 Standalone PaddleOCR Detection Script - SIMPLIFIED VERSION
 
-This script runs PaddleOCR separately to avoid conflicts with PyTorch/YOLO.
-Minimal error checking to avoid numpy array boolean issues.
+This script runs PaddleOCR separately to avoid conflicts with PyTorch.
+Uses new fine-tuned detection model from models/paddleocr/det-new/best_model
 """
 
 import sys
@@ -33,13 +33,23 @@ def detect_text_boxes(image_path):
         # Force CPU mode to avoid CUDA DLL issues
         use_gpu = False
         
-        # Initialize PaddleOCR with custom model
-        det_model_path = "models/det_db_inference"
+        # Initialize PaddleOCR with new fine-tuned model
+        # Priority: det-new/best_model (new fine-tuned) > det_db_inference (old)
+        det_model_path_new = "models/paddleocr/det-new/best_model"
+        det_model_path_old = "models/paddleocr/det_db_inference"
+        
+        # Check which model exists
+        if os.path.exists(det_model_path_new):
+            det_model_path = det_model_path_new
+        elif os.path.exists(det_model_path_old):
+            det_model_path = det_model_path_old
+        else:
+            det_model_path = None
         
         ocr = PaddleOCR(
             use_angle_cls=False,
             rec=False,  # Only detection
-            det_model_dir=det_model_path if os.path.exists(det_model_path) else None,
+            det_model_dir=det_model_path,
             use_gpu=use_gpu,
             lang='en',
             show_log=False
